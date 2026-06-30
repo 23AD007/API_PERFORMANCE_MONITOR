@@ -1,9 +1,9 @@
 import time
 import requests
-
+from datetime import datetime, timedelta
 from database.db import db
 from database.models import API, Metric
-
+from logger import logger
 
 REQUEST_TIMEOUT = 10  # seconds
 
@@ -14,7 +14,7 @@ def check_api(api):
     """
 
     start_time = time.perf_counter()
-
+    logger.info(f"Checking API: {api.name} ({api.url})")
     try:
         response = requests.request(
             method=api.method,
@@ -34,8 +34,11 @@ def check_api(api):
             success=response.ok,
             error_message=None
         )
-
+        logger.info(
+           f"{api.name} | Status: {response.status_code} | Response Time: {response_time} ms"
+       )
     except requests.exceptions.Timeout:
+        logger.error(f"{api.name} | Request Timeout")
 
         metric = Metric(
             api_id=api.id,
@@ -46,6 +49,7 @@ def check_api(api):
         )
 
     except requests.exceptions.ConnectionError:
+        logger.error(f"{api.name} | Connection Error")
 
         metric = Metric(
             api_id=api.id,
@@ -56,6 +60,7 @@ def check_api(api):
         )
 
     except requests.exceptions.SSLError:
+        logger.error(f"{api.name} | SSL Error")
 
         metric = Metric(
             api_id=api.id,
@@ -66,6 +71,7 @@ def check_api(api):
         )
 
     except Exception as e:
+        logger.exception(f"{api.name} | Unexpected Error")
 
         metric = Metric(
             api_id=api.id,
@@ -82,16 +88,22 @@ def check_api(api):
 
 
 def check_all_apis():
-    """
-    Monitor every registered API.
-    """
 
     apis = API.query.all()
 
-    results = []
-
     for api in apis:
-        result = check_api(api)
-        results.append(result)
 
-    return results
+        now = datetime.utcnow()
+
+        if api.last_checked:
+
+            elapsed = now - api.last_checked
+
+            if elapsed < timedelta(seconds=api.interval):
+                continue
+
+        check_api(api)
+
+        api.last_checked = now
+
+        db.session.commit()

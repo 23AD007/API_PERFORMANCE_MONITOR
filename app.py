@@ -1,31 +1,25 @@
-from flask import Flask
+from flask import Flask, render_template
 
 from config import Config
 from database.db import db
-from database.models import API, Metric
 from routes.api_routes import api_bp
+from scheduler import start_scheduler
 
 app = Flask(__name__)
-
 app.config.from_object(Config)
 
 db.init_app(app)
 
-
 with app.app_context():
     db.create_all()
-
+    start_scheduler()
 
 app.register_blueprint(api_bp)
 
 
 @app.route("/")
 def home():
-    return {
-        "project": "API Performance Monitor",
-        "status": "Running",
-        "version": "1.0"
-    }
+    return render_template("index.html")
 
 
 if __name__ == "__main__":

@@ -11,7 +11,9 @@ class API(db.Model):
     name = db.Column(db.String(100), nullable=False)
 
     url = db.Column(db.String(500), nullable=False)
-
+    
+    last_checked = db.Column(db.DateTime)
+    
     method = db.Column(db.String(10), default="GET")
 
     interval = db.Column(db.Integer, default=30)
